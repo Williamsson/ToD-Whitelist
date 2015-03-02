@@ -5,8 +5,6 @@
  * Version: 1.0
  * Author: Simon Williamsson
  * License: GPL2
- 
- 
  */
  
  // Creating the widget 
@@ -20,7 +18,11 @@ class todWhitelist extends WP_Widget {
 		$this->userVerificationsTable = $wpdb->prefix . "tod_user_verifications";
 		$this->userRecruitmentTable = $wpdb->prefix . "tod_user_recruitment";
 		$this->errorLogTable = $wpdb->prefix . "tod_error_log";
-	
+		
+		add_action( 'admin_enqueue_scripts', array(&$this,'loadScripts'));
+		add_action('admin_menu', array(&$this, 'addAdminMenuItem'));
+		add_action( 'init', array(&$this,'setApiAuthCookie'));
+		
 		parent::__construct(
 				// Base ID of your widget
 				'todWhitelist',
@@ -47,8 +49,8 @@ class todWhitelist extends WP_Widget {
 			prevExp varchar(60),
 			description text,
 			state varchar(20) DEFAULT 'whitelisted',
-			avalibleInvites int(1) DEFAULT '5',
-			totalInvitesSent int(1) DEFAULT NULL,
+			availableInvites int(1) DEFAULT '1',
+			totalInvites int(1) DEFAULT '1',
 			UNIQUE KEY id (id),
 			UNIQUE KEY uuid (uuid)
 		) $charset_collate;";
@@ -72,7 +74,8 @@ class todWhitelist extends WP_Widget {
 			recruitedUUID varchar(40) NOT NULL,
 			recruitedGotReward tinyint(1) DEFAULT '0',
 			recruiterGotReward tinyint(1) DEFAULT '0',
-			dateRecruited datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+			dateRecruited timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			UNIQUE KEY uuid (uuid)
 		) $charset_collate;";
 		
 		dbDelta($query);
@@ -266,6 +269,178 @@ class todWhitelist extends WP_Widget {
 		return $instance;
 	}
 	
+	public function addAdminMenuItem(){
+	        add_menu_page('ToD-Whitelist Settings', 'ToD-Whitelist', 'manage_options', 'tod-whitelist', array(&$this, 'adminPageContent'), "dashicons-shield", 25);
+	}
+	
+	public function setApiAuthCookie(){
+		if (!isset($_COOKIE['apiAuthKey'])) {
+			require_once("api/config.php");
+			setcookie('apiAuthKey', $authKey, time()+3600);
+		}
+	}
+	
+	public function adminPageContent(){
+		if ( !current_user_can( 'manage_options' ) )  {
+			wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
+		}
+		
+		if(isset($_GET['tab'])){
+			$current = $_GET['tab'];
+		}else{
+			$current = 'whitelist';
+		}
+		$tabs = array( 'whitelist' => 'Whitelisted folks', 'blacklist' => 'Blacklisted folks', 'pending' => 'Pending folks', 'errors' => 'Error logs');
+		$page = '<div id="icon-themes" class="icon32"><br></div>';
+		$page .= '<h2 class="nav-tab-wrapper">';
+		switch ($current){
+			case 'whitelist':
+				$data = $this->getAllUsers('whitelisted');
+				break;
+			case 'blacklist':
+				$data = $this->getAllUsers('blacklisted');
+				break;
+			case 'errors':
+				$data = $this->getErrorLog();
+				break;
+			case 'pending':
+				$data = $this->getAllUsers('pending');
+				break;
+			default:
+				$data = $this->getAllUsers('whitelisted');
+				break;
+		}
+		foreach( $tabs as $tab => $name ){
+			$class = ( $tab == $current ) ? ' nav-tab-active' : '';
+			$page .= "<a class='nav-tab$class' href='?page=tod-whitelist&tab=$tab'>$name</a>";
+		
+		}
+		$page .= '</h2>';
+		
+		
+		if($current != 'errors'){
+			$page .= '<h2>Instructions</h2>';
+			$page .= '<p>The top left search field is used to get the UUID of a minecraft username,<br/> when you press "Search" the UUID will be inserted in the bottom right search field (provided that the username you enter exists).</p>';
+			$page .= '<p>The bottom right search field can be used as well, but you will not find usernames via it if you enter them there.<br/>
+						This field searches everything in the table - But Not <u>Usernames</u>.</p>';
+			
+			$page .= '<p><b>IN SHORT: ENTER USERNAME IN TOP LEFT, ANYTHING ELSE BOTTOM RIGHT!</b></p>';
+			
+			$page .= '<label for="tod-whitelist-search">Enter username:</label>';
+			$page .= "<input type='search' id='tod-whitelist-search' placeholder>";
+			$page .= '<input type="submit" id="tod-whitelist-search-submit" value="Search"> <input type="submit" id="tod-whitelist-clear" value="Clear"><br/><br/>';
+			$page .= '<div id="tod-whitelist-content-wrapper">';
+				$page .= '<table id="example" class="display nowrap dataTable dtr-inline">';
+					$page .= '<thead>';
+					$page .= '<tr role="row">';
+					$page .= '<th>Whitelisted at</th>';
+					$page .= '<th>UUID</th>';
+					$page .= '<th>Email</th>';
+					$page .= '<th>Staff Experience</th>';
+					$page .= '<th>Description</th>';
+					$page .= '</tr>';
+					$page .= '</thead>';
+					$page .= '<tbody>';
+					if($data){
+						foreach($data as $row){
+							$page .= '<tr>';
+								$page .= "<td>" . $row['time'] . "</td>";
+								$page .= "<td><a class='uuidProfileLink' href='#". $row['id'] ."'>" . $row['uuid'] . "</a></td>";
+								$page .= "<td>" . $row['email'] . "</td>";
+								$page .= "<td>" . $row['prevExp'] . "</td>";
+								$page .= "<td>" . $row['description'] . "</td>";
+							$page .= '</tr>';
+						}
+					}
+					$page .= '</tbody>';
+					
+				$page .= '</table>';
+			$page .= '</div>';
+		}else{
+			$page .= '<div id="tod-whitelist-content-wrapper">';
+				$page .= '<table id="example" class="display nowrap dataTable dtr-inline">';
+					$page .= '<thead>';
+						$page .= '<tr role="row">';
+							$page .= '<th>Error ID</th>';
+							$page .= '<th>content</th>';
+							$page .= '<th>Resolved</th>';
+							$page .= '<th>Date of event</th>';
+						$page .= '</tr>';
+					$page .= '</thead>';
+					$page .= '<tbody>';
+					if($data){
+						foreach($data as $row){
+							$page .= '<tr>';
+								$page .= "<td>" . $row['id'] . "</td>";
+								$page .= "<td>" . $row['content'] . "</td>";
+								$page .= "<td>" . $row['resolved'] . "</td>";
+								$page .= "<td>" . $row['date'] . "</td>";
+							$page .= '</tr>';
+						}
+					}
+					$page .= '</tbody>';
+				$page .= '</table>';
+			$page .= '</div>';
+		}
+		
+		$page .= "<div class='modal'></div>";
+		echo $page;
+	}
+	
+	private function getErrorLog(){
+		global $wpdb;
+		$data = $wpdb->get_results(
+				"SELECT id,content,resolved,date FROM " . $this->errorLogTable . ""
+		);
+		if($data){
+			$return = array();
+			foreach($data as $log){
+				$temp = array();
+				$temp['id'] = $log->id;
+				$temp['content'] = $log->content;
+				$temp['resolved'] = $log->resolved;
+				$temp['date'] = $log->date;
+		
+				$return[] = $temp;
+			}
+			return $return;
+		}
+		return false;
+	}
+	
+	private function getAllUsers($state){
+		global $wpdb;
+		
+		$data = $wpdb->get_results(
+			"SELECT id,uuid,time,email,prevExp,description FROM " . $this->userDataTable . " WHERE state = '$state'"
+		);
+		if($data){
+			$return = array();
+			foreach($data as $user){
+				$temp = array();
+				$temp['id'] = $user->id;
+				$temp['uuid'] = $user->uuid;
+				$temp['time'] = $user->time;
+				$temp['email'] = $user->email;
+				$temp['prevExp'] = $user->prevExp;
+				$temp['description'] = $user->description;
+				
+				$return[] = $temp;
+			}
+			return $return;
+		}
+		return false;
+	}
+	
+	public function loadScripts($hook_suffix){
+		wp_enqueue_script( "dataTables", "//cdn.datatables.net/1.10.5/js/jquery.dataTables.min.js" );
+		wp_enqueue_style('datatablesCSS', "//cdn.datatables.net/1.10.5/css/jquery.dataTables.min.css");
+		wp_enqueue_style('tod-whitelist-css', "/wp-content/plugins/tod-whitelist/css/style.css");
+		wp_enqueue_script( "todScript", "/wp-content/plugins/tod-whitelist/js/todScript.js" );
+		wp_enqueue_style( 'custom', get_stylesheet_directory_uri() . '/zebra-dialog/default/zebra_dialog.css' );
+		wp_enqueue_script( 'zebra_dialog', get_stylesheet_directory_uri() . '/zebra-dialog/zebra_dialog.js', array(), '1.0.0', true );
+	}
+	
 	private function sendEmail($to, $headers, $message, $title){
 		if(wp_mail($to, $title, $message, $headers)){
 			return true;
@@ -303,17 +478,18 @@ class todWhitelist extends WP_Widget {
 	}
 	
 	public function activationPage(){
-		
 		$authKey = sanitize_text_field($_GET['id']);
 		if(!empty($authKey)){
 			global $wpdb;
-
+			
 			$data = $wpdb->get_results("SELECT id, username_temp FROM " . $this->userVerificationsTable ." WHERE verification_key = '$authKey'");
 			if($data){
 				$id = $data[0]->id;
 				$wpdb->update($this->userDataTable, array( 'state' => 'whitelisted'),array('id'=>$id));
-				$wpdb->delete($this->userVerificationsTable,array('id'=>$id));
+				$test = $wpdb->delete($this->userVerificationsTable,array('id'=>$id));
 				
+				print_r($test);
+				die($test);
 				echo "<h1>Account confirmation completed! <br/>You can now start playing.</h1>";
 				echo "<p>We've also sent another email to you with account credentials for this website and the forums.</p>";
 				
@@ -456,4 +632,5 @@ register_activation_hook( __FILE__, array( 'todWhitelist', 'install' ) );
 function wpb_load_widget() {
 	register_widget( 'todWhitelist' );
 }
+
 add_action( 'widgets_init', 'wpb_load_widget' );

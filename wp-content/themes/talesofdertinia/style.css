@@ -10,18 +10,19 @@
 */
 
 #header{
-background: url(linkredactedfornow);
-background-repeat: no-repeat;
-background-size: cover;
+	background: url('img/tod_banner_flat.png');
+	background-repeat: no-repeat;
+	background-position: top center;
+	background-size: cover;
 }
 #nav-header.nav-container{
-background: #33363b;
+	background: #33363b;
 }
 .site-description{
-color: #000;
+	color: #000;
 }
 h1,h2,h3,h4, .page-title h1, .page-title h2, .page-title h4{
-color: #3B8DBD;
+	color: #3B8DBD;
 }
 
 a, .widget a, .widget h3 a{
@@ -29,15 +30,15 @@ a, .widget a, .widget h3 a{
 }
 
 .widget_todwhitelist input[type="submit"], .widget_login_wid form ul li input[type="submit"]{
-background: #82B965;
-color: #fff;
-padding: 8px 14px;
-font-weight: 600;
-display: inline-block;
-border: none;
-cursor: pointer;
--webkit-border-radius: 3px;
-border-radius: 3px;
+	background: #82B965;
+	color: #fff;
+	padding: 8px 14px;
+	font-weight: 600;
+	display: inline-block;
+	border: none;
+	cursor: pointer;
+	-webkit-border-radius: 3px;
+	border-radius: 3px;
 }
 .widget_todwhitelist input[type="submit"]:hover, .widget_login_wid form ul li input[type="submit"]:hover{
 	background:#444;
