@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Tales of Dertinia Whitelist
  * Description: The whitelisting system for Tales of Dertinia.
- * Version: 1.0
+ * Version: 1.1
  * Author: Simon Williamsson
  * License: GPL2
  */
@@ -10,7 +10,7 @@
  // Creating the widget 
 class todWhitelist extends WP_Widget {
 	
-	private $userDataTable, $userVerificationsTable, $userRecruitmentTable, $errorLogTable;
+	protected $userDataTable, $userVerificationsTable, $userRecruitmentTable, $errorLogTable;
 	
 	function __construct() {
 		global $wpdb;
@@ -37,14 +37,14 @@ class todWhitelist extends WP_Widget {
 	
 	static function install(){
 		global $wpdb;
-	
+		
 		$table = $wpdb->prefix . "tod_user_data";
 		$charset_collate = $wpdb->get_charset_collate();
 	
 		$query = "CREATE TABLE $table (
 			id int(11) NOT NULL AUTO_INCREMENT,
 			uuid varchar(40) NOT NULL,
-			time datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+			time timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			email varchar(40) NOT NULL,
 			prevExp varchar(60),
 			description text,
@@ -85,7 +85,7 @@ class todWhitelist extends WP_Widget {
 			id int(11) NOT NULL AUTO_INCREMENT,
 			content text NOT NULL,
 			resolved tinyint(1) NOT NULL DEFAULT '0',
-			date datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+			date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			UNIQUE KEY id (id)
 		) $charset_collate;";
 		
@@ -131,7 +131,6 @@ class todWhitelist extends WP_Widget {
 										$this->userDataTable,
 										array(
 												'uuid'			=> $uuid,
-												'time'			=> current_time('mysql'),
 												'email'			=> $email,
 												'prevExp'		=> $prevExp,
 												'description'	=> $desc,
@@ -285,6 +284,10 @@ class todWhitelist extends WP_Widget {
 			wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
 		}
 		
+		if(isset($_POST['changeUserState'])){
+			$this->setUserState($_POST['id'], $_POST['state']);
+		}
+		
 		if(isset($_GET['tab'])){
 			$current = $_GET['tab'];
 		}else{
@@ -326,6 +329,8 @@ class todWhitelist extends WP_Widget {
 			
 			$page .= '<p><b>IN SHORT: ENTER USERNAME IN TOP LEFT, ANYTHING ELSE BOTTOM RIGHT!</b></p>';
 			
+			$page .= '<p><u>Note:</u>The action dropdown and "Go" button ONLY affects the row you\'re clicking the button on!</p>';
+			
 			$page .= '<label for="tod-whitelist-search">Enter username:</label>';
 			$page .= "<input type='search' id='tod-whitelist-search' placeholder>";
 			$page .= '<input type="submit" id="tod-whitelist-search-submit" value="Search"> <input type="submit" id="tod-whitelist-clear" value="Clear"><br/><br/>';
@@ -338,6 +343,7 @@ class todWhitelist extends WP_Widget {
 					$page .= '<th>Email</th>';
 					$page .= '<th>Staff Experience</th>';
 					$page .= '<th>Description</th>';
+					$page .= '<th>Action</th>';
 					$page .= '</tr>';
 					$page .= '</thead>';
 					$page .= '<tbody>';
@@ -349,6 +355,16 @@ class todWhitelist extends WP_Widget {
 								$page .= "<td>" . $row['email'] . "</td>";
 								$page .= "<td>" . $row['prevExp'] . "</td>";
 								$page .= "<td>" . $row['description'] . "</td>";
+								
+								$page .= "<td><form action='' method='POST'>
+													<input name='id' type='hidden' value='" . $row['id'] . "'>
+													<select name='state'>
+														<option value='blacklisted'>Blacklist</option>
+														<option value='whitelisted'>Whitelist</option>
+														<option value='pending'>Add to pending</option>
+													</select>
+													<input type='submit' name='changeUserState' value='Go'>
+												</form></td>";
 							$page .= '</tr>';
 						}
 					}
@@ -408,6 +424,11 @@ class todWhitelist extends WP_Widget {
 		return false;
 	}
 	
+	private function setUserState($id, $state){
+		global $wpdb;
+		$wpdb->update($this->userDataTable, array( 'state' => $state),array('id'=>$id));
+	}
+	
 	private function getAllUsers($state){
 		global $wpdb;
 		
@@ -454,8 +475,7 @@ class todWhitelist extends WP_Widget {
 		$wpdb->insert(
 			$this->errorLogTable,
 			array(
-				'content'	=> $msg,
-				'time'		=> current_time('mysql')
+				'content'	=> $msg
 			)
 		);
 	}
@@ -486,10 +506,8 @@ class todWhitelist extends WP_Widget {
 			if($data){
 				$id = $data[0]->id;
 				$wpdb->update($this->userDataTable, array( 'state' => 'whitelisted'),array('id'=>$id));
-				$test = $wpdb->delete($this->userVerificationsTable,array('id'=>$id));
+				$wpdb->delete($this->userVerificationsTable,array('id'=>$id));
 				
-				print_r($test);
-				die($test);
 				echo "<h1>Account confirmation completed! <br/>You can now start playing.</h1>";
 				echo "<p>We've also sent another email to you with account credentials for this website and the forums.</p>";
 				
