@@ -114,10 +114,9 @@ class todWhitelist extends WP_Widget {
 					if(!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)){
 						$username = sanitize_text_field($_POST['username']);
 						$uuid = $this->getUserUUID($username);
-	
+						
 						if(!empty($uuid)){
 							$state = $this->checkUuidState($uuid);
-							$state = $state[0]->state;
 							if(!$state){
 								$prevExp = "";
 								foreach($_POST['prevExp'] as $exp){
@@ -155,9 +154,9 @@ class todWhitelist extends WP_Widget {
 										
 										$mailContent = "<h1>Welcome!</h1>";
 										$mailContent .= "<p>In order to become whitelisted you need to activate your account with the link below:</p>";
-										$mailContent .= "<a href='http://dev.talesofdertinia.com/activation?id=$authKey'>Activate account with this link</a>";
+										$mailContent .= "<a href='http://talesofdertinia.com/activation?id=$authKey'>Activate account with this link</a>";
 										
-										$mailContent .= "<p>Does the link not work? Copy and paste this: http://dev.talesofdertinia.com/activation?id=$authKey</p>";
+										$mailContent .= "<p>Does the link not work? Copy and paste this: http://talesofdertinia.com/activation?id=$authKey</p>";
 										
 										$mailContent .= "<p>Best regards,<br/>
 														the Tales of Dertinia staff</p>";
@@ -537,6 +536,11 @@ class todWhitelist extends WP_Widget {
 		global $config;
 		switch($action){
 			case 'add':
+				
+				if(!validate_phpbb_username($username)){
+					return false;	
+				}
+				
 				$group_id = 2;
 				$language = 'en';
 				$user_type = USER_NORMAL;
@@ -634,7 +638,7 @@ class todWhitelist extends WP_Widget {
 	//Returns false if uuid dosen't exist, returns the state if the uuid exists
 	protected function checkUuidState($uuid){
 		global $wpdb;
-		$state = $wpdb->get_results("SELECT state FROM " . $this->userDataTable." WHERE uuid = '$uuid'");
+		$state = $wpdb->get_results("SELECT state FROM " . $this->userDataTable. " WHERE uuid = '$uuid'");
 		if($state){
 			return $state;
 		}

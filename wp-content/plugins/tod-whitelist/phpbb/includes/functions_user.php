@@ -538,3 +538,134 @@ function group_set_user_default($group_id, $user_id_ary, $group_attributes = fal
 	}
 
 }
+
+function validate_phpbb_username($username, $allowed_username = false)
+{
+	global $config, $db, $user, $cache;
+
+	$clean_username = sanitize_text_field($username);
+	$allowed_username = ($allowed_username === false) ? $user->data['username_clean'] : sanitize_text_field($allowed_username);
+	
+	if ($allowed_username == $clean_username)
+	{
+		return false;
+	}
+
+	// ... fast checks first.
+	if (strpos($username, '&quot;') !== false || strpos($username, '"') !== false || empty($clean_username))
+	{
+		return 'INVALID_CHARS';
+	}
+	
+	$mbstring = $pcre = false;
+
+	// generic UTF-8 character types supported?
+	if ((version_compare(PHP_VERSION, '5.1.0', '>=') || (version_compare(PHP_VERSION, '5.0.0-dev', '<=') && version_compare(PHP_VERSION, '4.4.0', '>='))) && @preg_match('/\p{L}/u', 'a') !== false)
+	{
+		$pcre = true;
+	}
+	else if (function_exists('mb_ereg_match'))
+	{
+		mb_regex_encoding('UTF-8');
+		$mbstring = true;
+	}
+
+	switch ($config['allow_name_chars'])
+	{
+		case 'USERNAME_CHARS_ANY':
+			$pcre = true;
+			$regex = '.+';
+			break;
+
+		case 'USERNAME_ALPHA_ONLY':
+			$pcre = true;
+			$regex = '[A-Za-z0-9]+';
+			break;
+
+		case 'USERNAME_ALPHA_SPACERS':
+			$pcre = true;
+			$regex = '[A-Za-z0-9-[\]_+ ]+';
+			break;
+
+		case 'USERNAME_LETTER_NUM':
+			if ($pcre)
+			{
+				$regex = '[\p{Lu}\p{Ll}\p{N}]+';
+			}
+			else if ($mbstring)
+			{
+				$regex = '[[:upper:][:lower:][:digit:]]+';
+			}
+			else
+			{
+				$pcre = true;
+				$regex = '[a-zA-Z0-9]+';
+			}
+			break;
+
+		case 'USERNAME_LETTER_NUM_SPACERS':
+			if ($pcre)
+			{
+				$regex = '[-\]_+ [\p{Lu}\p{Ll}\p{N}]+';
+			}
+			else if ($mbstring)
+			{
+				$regex = '[-\]_+ \[[:upper:][:lower:][:digit:]]+';
+			}
+			else
+			{
+				$pcre = true;
+				$regex = '[-\]_+ [a-zA-Z0-9]+';
+			}
+			break;
+
+		case 'USERNAME_ASCII':
+		default:
+			$pcre = true;
+			$regex = '[\x01-\x7F]+';
+			break;
+	}
+
+	if ($pcre)
+	{
+		if (!preg_match('#^' . $regex . '$#u', $username))
+		{
+			return 'INVALID_CHARS';
+		}
+	}
+	else if ($mbstring)
+	{
+		mb_ereg_search_init($username, '^' . $regex . '$');
+		if (!mb_ereg_search())
+		{
+			return 'INVALID_CHARS';
+		}
+	}
+
+	$sql = 'SELECT username
+		FROM ' . USERS_TABLE . "
+		WHERE username_clean = '" . $db->sql_escape($clean_username) . "'";
+	$result = $db->sql_query($sql);
+	$row = $db->sql_fetchrow($result);
+	$db->sql_freeresult($result);
+
+	if ($row)
+	{
+		return 'USERNAME_TAKEN';
+	}
+
+	$sql = 'SELECT group_name
+		FROM ' . GROUPS_TABLE . "
+		WHERE LOWER(group_name) = '" . $db->sql_escape(strtolower($username)) . "'";
+	$result = $db->sql_query($sql);
+	$row = $db->sql_fetchrow($result);
+	$db->sql_freeresult($result);
+
+	if ($row)
+	{
+		return 'USERNAME_TAKEN';
+	}
+
+
+	return false;
+}
