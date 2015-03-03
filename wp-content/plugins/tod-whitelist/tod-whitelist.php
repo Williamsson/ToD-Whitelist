@@ -213,16 +213,16 @@ class todWhitelist extends WP_Widget {
 			$page .= "<input type='search' id='tod-whitelist-search' placeholder>";
 			$page .= '<input type="submit" id="tod-whitelist-search-submit" value="Search"> <input type="submit" id="tod-whitelist-clear" value="Clear"><br/><br/>';
 			$page .= '<div id="tod-whitelist-content-wrapper">';
-				$page .= '<table id="example" class="display nowrap dataTable dtr-inline">';
+				$page .= '<table id="usersTable" class="display nowrap dataTable dtr-inline">';
 					$page .= '<thead>';
-					$page .= '<tr role="row">';
-					$page .= '<th>Whitelisted at</th>';
-					$page .= '<th>UUID</th>';
-					$page .= '<th>Email</th>';
-					$page .= '<th>Staff Experience</th>';
-					$page .= '<th>Description</th>';
-					$page .= '<th>Action</th>';
-					$page .= '</tr>';
+						$page .= '<tr role="row">';
+							$page .= '<th>Whitelisted at</th>';
+							$page .= '<th>UUID</th>';
+							$page .= '<th>Email</th>';
+							$page .= '<th>Staff Experience</th>';
+							$page .= '<th>Description</th>';
+							$page .= '<th>Action</th>';
+						$page .= '</tr>';
 					$page .= '</thead>';
 					$page .= '<tbody>';
 					if($data){
@@ -252,7 +252,7 @@ class todWhitelist extends WP_Widget {
 			$page .= '</div>';
 		}else{
 			$page .= '<div id="tod-whitelist-content-wrapper">';
-				$page .= '<table id="example" class="display nowrap dataTable dtr-inline">';
+				$page .= '<table id="logsTable" class="display nowrap dataTable dtr-inline">';
 					$page .= '<thead>';
 						$page .= '<tr role="row">';
 							$page .= '<th>Error ID</th>';
@@ -434,7 +434,7 @@ class todWhitelist extends WP_Widget {
 									if($res){
 										$lastid = $wpdb->insert_id;
 										$authKey = substr(md5(rand()), 0, 15);
-			
+										
 										$res = $wpdb->insert(
 												$this->userVerificationsTable,
 												array(
@@ -576,7 +576,11 @@ class todWhitelist extends WP_Widget {
 		$pwd = wp_generate_password(9, true);
 		$userExists = username_exists( $username );
 		if (!$userExists and email_exists($email) == false ) {
-			wp_create_user( $username, $pwd, $email );
+			if(wp_create_user( $username, $pwd, $email )){
+				$this->addLogEntry("Created WP account for $username");
+			}else{
+				$this->addLogEntry("WP account already exists for $username");
+			}
 		}
 		
 		//Start making a welcome mail
@@ -589,7 +593,7 @@ class todWhitelist extends WP_Widget {
 		$message .= "To fully enjoy this, we advice you to regularly visit our website and our forums.<br/>";
 		$message .= "To make things easier for you we've automagically registered these for you!</p>";
 		$message .= "<br/><h2>Tales of Dertinia Website:</h2>";
-
+		
 		if(!$userExists){
 			$message .="<p>Username: $username</p>";
 			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
@@ -602,9 +606,11 @@ class todWhitelist extends WP_Widget {
 		
 		$message .="<br/><h2>Tales of Dertinia Forum:</h2>";
 		if($forumAcc){
+			$this->addLogEntry("Created forum acc for $username");
 			$message .="<p>Username: $username</p>";
 			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
 		}else{
+			$this->addLogEntry("Forum acc already existed for $username");
 			$message .="<p>Oh! You already had an account here. In that case you know your credentials better than we do.<br/>
 							Should there be any problems just email us and we'll take a look at it.</p>";
 		}
@@ -617,9 +623,11 @@ class todWhitelist extends WP_Widget {
 		$message .= "<p>Best regards,<br/>
 						the Tales of Dertinia staff.</p>";
 		
-		$this->sendEmail($email, $headers, $message, "Welcome to the Tales of Dertinia community!");
-		
-		
+		if($this->sendEmail($email, $headers, $message, "Welcome to the Tales of Dertinia community!")){
+			$this->addLogEntry("Sent welcome email to $username");
+		}else{
+			$this->addLogEntry("Failed to send welcome mail to $username");
+		}
 	}
 	
 	protected function checkEmailExists($email){
