@@ -102,117 +102,8 @@ class todWhitelist extends WP_Widget {
 		if ( ! empty( $title ) )
 			echo $args['before_title'] . $title . $args['after_title'];
 	
-		if(isset($_POST['whitelistSubmit']) && $_POST['whitelistSubmit'] == "Apply"){
-			$errors = array();
-			if (!function_exists('curl_init')){
-				$errors[] = "ERROR: Due to connection problems we couldn't verify settings. Please notify the site admin.";
-			}else{
-				$email = strtolower($_POST['email']);
-				if($this->checkEmailExists($email)){
-					$errors[] = "That email is already registered!";
-				}else{
-					if(!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)){
-						$username = sanitize_text_field($_POST['username']);
-						$uuid = $this->getUserUUID($username);
-						
-						if(!empty($uuid)){
-							$state = $this->checkUuidState($uuid);
-							if(!$state){
-								$prevExp = "";
-								foreach($_POST['prevExp'] as $exp){
-									$prevExp = $prevExp . $exp . ", ";
-								}
-								$prevExp = sanitize_text_field($prevExp);
-								$desc = sanitize_text_field($_POST['description']);
-									
-								global $wpdb;
-								$res = $wpdb->insert(
-										$this->userDataTable,
-										array(
-												'uuid'			=> $uuid,
-												'email'			=> $email,
-												'prevExp'		=> $prevExp,
-												'description'	=> $desc,
-												'state'			=> 'pending'
-										)
-								);
-								if($res){
-									$lastid = $wpdb->insert_id;
-									$authKey = substr(md5(rand()), 0, 15);
-										
-									$res = $wpdb->insert(
-											$this->userVerificationsTable,
-											array(
-													'id'				=> $lastid,
-													'verification_key'	=> $authKey,
-													'username_temp'		=> $username
-											)
-									);
-									if($res){
-										$headers[] = 'From: Tales of Dertinia Staff <info@talesofdertinia.com>';
-										$headers[] = 'Content-Type: text/html; charset=UTF-8';
-										
-										$mailContent = "<h1>Welcome!</h1>";
-										$mailContent .= "<p>In order to become whitelisted you need to activate your account with the link below:</p>";
-										$mailContent .= "<a href='http://talesofdertinia.com/activation?id=$authKey'>Activate account with this link</a>";
-										
-										$mailContent .= "<p>Does the link not work? Copy and paste this: http://talesofdertinia.com/activation?id=$authKey</p>";
-										
-										$mailContent .= "<p>Best regards,<br/>
-														the Tales of Dertinia staff</p>";
-										
-										$res = $this->sendEmail($email, $headers, $mailContent, "Tales of Dertinia Whitelist Application");
-										
-										if($res){
-											$message = "Application successful! Check your email and click the activation link to start playing!";
-											unset($_POST['username']);
-											unset($_POST['email']);
-											unset($_POST['description']);
-										}else{
-											//Everything except sending a email authentication worked..
-											$message = "Something went wrong. Your application has been processed, however you haven't gotten the authentication email properly. A notification has been sent to the staff with all information and they will get back to you.";
-											$headers[] = 'From: ToD Error Handler <info@talesofdertinia.com>';
-											$headers[] = 'Content-Type: text/html; charset=UTF-8';
-											$mailMessage = "<h1>Error while sending activation email</h1>";
-											$mailMessage .= "User with ID $lastid is fully inserted in database, but hasn't recieved authentication email. Email to user is $email";
-											$this->sendEmail("info@talesofdertinia.com", $headers, $mailMessage, "Error in registration");
-											$this->addErrorEntry("User with ID $lastid hasn't recieved an authentication email.");
-										}
-									}else{
-										//We've inserted the user as pending in the tod_user_data table - however there's no data in tod_user_verifications
-										$message = "Something went wrong. A team of highly trained creepers has been dispatched to fix the errorsss..";
-										$headers[] = 'From: ToD Error Handler <info@talesofdertinia.com>';
-										$headers[] = 'Content-Type: text/html; charset=UTF-8';
-										$mailMessage = "<h1>Error while sending activation email</h1>";
-										$mailMessage .= "The first part of the registration failed. I don't know why.";
-										$this->sendEmail("info@talesofdertinia.com", $headers, $mailMessage, "Error in registration");
-									}
-								}else{
-									//Couldn't insert data to tod_user_data table. Let's not alarm the user.
-									$message = "I'm terribly sorry, but something seems to have gone awfully wrong. Our team, travelling on a Techy-Trolly(TM), has been dispatched and is enroute! Try again at a later time.";
-									$headers[] = 'From: ToD Error Handler <info@talesofdertinia.com>';
-									$headers[] = 'Content-Type: text/html; charset=UTF-8';
-									$mailMessage = "<h1>Error while sending activation email</h1>";
-									$mailMessage .= "The first part of the registration failed. I don't know why.";
-									$this->sendEmail("info@talesofdertinia.com", $headers, $mailMessage, "Error in registration");
-								}
-							}else{
-								$errors[] = "You're already in our registers! State: $state";
-							}
-								
-						}else{
-							$errors[] = "No username with that name could be found.";
-						}
-					}else{
-						$errors[] = "Email entered is not a valid email format!";
-					}
-						
-				}
-			}
-		}
-	
 		?>
-		<form method="POST" action="">
+		<form method="POST" action="/activation?activation=1">
 			<label for="username">Minecraft username*:</label><br/>
 				<input type="text" name="username" value="<?= (isset($_POST['username']) ? $_POST['username'] : ''); ?>"><br/>
 			<label for="email">Email*:</label><br/>
@@ -228,18 +119,6 @@ class todWhitelist extends WP_Widget {
 			<input type="submit" name="whitelistSubmit" value="Apply">
 		</form>
 		<?php 
-		if(isset($message)){
-			echo "<h2>$message</h2>";
-		}
-		if(!empty($errors)){
-			echo "<h2>Form errors:</h2>
- 				<ul>";
-			foreach($errors as $err){
-				echo "<li>" . $err . "</li>";
-			}
-			echo "</ul>";
-		}
-		
 		echo $args['after_widget'];
 	}
 				
@@ -292,7 +171,7 @@ class todWhitelist extends WP_Widget {
 		}else{
 			$current = 'whitelist';
 		}
-		$tabs = array( 'whitelist' => 'Whitelisted folks', 'blacklist' => 'Blacklisted folks', 'pending' => 'Pending folks', 'errors' => 'Error logs');
+		$tabs = array( 'whitelist' => 'Whitelisted folks', 'blacklist' => 'Blacklisted folks', 'pending' => 'Pending folks', 'logs' => 'Logs');
 		$page = '<div id="icon-themes" class="icon32"><br></div>';
 		$page .= '<h2 class="nav-tab-wrapper">';
 		switch ($current){
@@ -302,8 +181,8 @@ class todWhitelist extends WP_Widget {
 			case 'blacklist':
 				$data = $this->getAllUsers('blacklisted');
 				break;
-			case 'errors':
-				$data = $this->getErrorLog();
+			case 'logs':
+				$data = $this->getLogs();
 				break;
 			case 'pending':
 				$data = $this->getAllUsers('pending');
@@ -320,7 +199,7 @@ class todWhitelist extends WP_Widget {
 		$page .= '</h2>';
 		
 		
-		if($current != 'errors'){
+		if($current != 'logs'){
 			$page .= '<h2>Instructions</h2>';
 			$page .= '<p>The top left search field is used to get the UUID of a minecraft username,<br/> when you press "Search" the UUID will be inserted in the bottom right search field (provided that the username you enter exists).</p>';
 			$page .= '<p>The bottom right search field can be used as well, but you will not find usernames via it if you enter them there.<br/>
@@ -402,7 +281,7 @@ class todWhitelist extends WP_Widget {
 		echo $page;
 	}
 	
-	private function getErrorLog(){
+	private function getLogs(){
 		global $wpdb;
 		$data = $wpdb->get_results(
 				"SELECT id,content,resolved,date FROM " . $this->errorLogTable . ""
@@ -468,7 +347,7 @@ class todWhitelist extends WP_Widget {
 		return false;
 	}
 	
-	private function addErrorEntry($msg){
+	private function addLogEntry($msg){
 		global $wpdb;
 		
 		$wpdb->insert(
@@ -516,6 +395,122 @@ class todWhitelist extends WP_Widget {
 				echo "<h1>We have no records of this key existing.</h1><br/>";
 				echo "<p>Having problems activating your account?<br/> Use the contact form on the website describing your problem!<br/>
 						Please remember to tell us what your minecraft username is so that we can troubleshoot the issue.</p>";
+			}
+		}elseif($_GET['activation']){
+			if(isset($_POST['whitelistSubmit']) && $_POST['whitelistSubmit'] == "Apply"){
+				$errors = array();
+				if (!function_exists('curl_init')){
+					$errors[] = "ERROR: Due to connection problems we couldn't verify settings. Please notify the site admin.";
+				}else{
+					$email = strtolower($_POST['email']);
+					if($this->checkEmailExists($email)){
+						$errors[] = "That email is already registered!";
+					}else{
+						if(!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)){
+							$username = sanitize_text_field($_POST['username']);
+							$uuid = $this->getUserUUID($username);
+			
+							if(!empty($uuid)){
+								$state = $this->checkUuidState($uuid);
+								if(!$state){
+									$prevExp = "";
+									foreach($_POST['prevExp'] as $exp){
+										$prevExp = $prevExp . $exp . ", ";
+									}
+									$prevExp = sanitize_text_field($prevExp);
+									$desc = sanitize_text_field($_POST['description']);
+										
+									global $wpdb;
+									$res = $wpdb->insert(
+											$this->userDataTable,
+											array(
+													'uuid'			=> $uuid,
+													'email'			=> $email,
+													'prevExp'		=> $prevExp,
+													'description'	=> $desc,
+													'state'			=> 'pending'
+											)
+									);
+									if($res){
+										$lastid = $wpdb->insert_id;
+										$authKey = substr(md5(rand()), 0, 15);
+			
+										$res = $wpdb->insert(
+												$this->userVerificationsTable,
+												array(
+														'id'				=> $lastid,
+														'verification_key'	=> $authKey,
+														'username_temp'		=> $username
+												)
+										);
+										if($res){
+											$headers[] = 'From: Tales of Dertinia Staff <info@talesofdertinia.com>';
+											$headers[] = 'Content-Type: text/html; charset=UTF-8';
+			
+											$mailContent = "<h1>Welcome!</h1>";
+											$mailContent .= "<p>In order to become whitelisted you need to activate your account with the link below:</p>";
+											$mailContent .= "<a href='http://talesofdertinia.com/activation?id=$authKey'>Activate account with this link</a>";
+			
+											$mailContent .= "<p>Does the link not work? Copy and paste this: http://talesofdertinia.com/activation?id=$authKey</p>";
+			
+											$mailContent .= "<p>Best regards,<br/>
+																	the Tales of Dertinia staff</p>";
+			
+											$res = $this->sendEmail($email, $headers, $mailContent, "Tales of Dertinia Whitelist Application");
+			
+											if($res){
+												$message = "Application successful! Check your email and click the activation link to start playing!";
+												$this->addLogEntry("Verification email was sent to $email");
+												unset($_POST['username']);
+												unset($_POST['email']);
+												unset($_POST['description']);
+											}else{
+												//Everything except sending a email authentication worked..
+												$message = "Something went wrong. Your application has been processed, however you haven't gotten the authentication email properly. A notification has been sent to the staff with all information and they will get back to you.";
+												$this->addLogEntry("User with ID $lastid hasn't recieved an authentication email. Email is: $email");
+											}
+										}else{
+											//We've inserted the user as pending in the tod_user_data table - however there's no data in tod_user_verifications
+											$this->addLogEntry("First part of whitelist failed for some unknown reason");
+											$message = "Something went wrong. A team of highly trained creepers has been dispatched to fix the errorsss..";
+											$headers[] = 'From: ToD Error Handler <info@talesofdertinia.com>';
+											$headers[] = 'Content-Type: text/html; charset=UTF-8';
+											$mailMessage = "<h1>Error while sending activation email</h1>";
+											$mailMessage .= "The first part of the registration failed. I don't know why.";
+											$this->sendEmail("info@talesofdertinia.com", $headers, $mailMessage, "Error in registration");
+										}
+									}else{
+										//Couldn't insert data to tod_user_data table. Let's not alarm the user.
+										$this->addLogEntry("Second part of whitelist failed for some unknown reason. User ID: $lastid");
+										$message = "I'm terribly sorry, but something seems to have gone awfully wrong. Our team, travelling on a Techy-Trolly(TM), has been dispatched and is enroute! Try again at a later time.";
+										$headers[] = 'From: ToD Error Handler <info@talesofdertinia.com>';
+										$headers[] = 'Content-Type: text/html; charset=UTF-8';
+										$mailMessage = "<h1>Error while sending activation email</h1>";
+										$mailMessage .= "The first part of the registration failed. I don't know why.";
+										$this->sendEmail("info@talesofdertinia.com", $headers, $mailMessage, "Error in registration");
+									}
+								}else{
+									$errors[] = "You're already in our registers! State: $state";
+								}
+							}else{
+								$errors[] = "No username with that name could be found.";
+							}
+						}else{
+							$errors[] = "Email entered is not a valid email format!";
+						}
+					}
+				}
+			}
+			if(isset($message)){
+				echo "<h2>$message</h2>";
+			}
+			if(!empty($errors)){
+				echo "<h2>Form errors:</h2>
+	 				<ul>";
+				foreach($errors as $err){
+					echo "<li>" . $err . "</li>";
+				}
+				echo "</ul>";
 			}
 		}else{
 			the_content();
