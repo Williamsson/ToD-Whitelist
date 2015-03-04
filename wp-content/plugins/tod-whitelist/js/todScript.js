@@ -1,7 +1,11 @@
 jQuery(document).ready(function(){
 		//Get a hold of my variables.. Precious variables..
-		var logsTable = jQuery('#logTable');
-		var usersTable = jQuery('#usersTable');
+		var logTable = jQuery('#logsTable').DataTable({
+	        "order": [[ 0, "desc" ]]
+	    } );
+		var userTable = jQuery('#usersTable').DataTable({
+	        "order": [[ 0, "desc" ]]
+	    } );
 		var usernameSearchField = jQuery('#tod-whitelist-search');
 		var usernameSearchClear = jQuery('#tod-whitelist-clear');
 		var usernameSearchSubmit = jQuery('#tod-whitelist-search-submit');
@@ -9,11 +13,6 @@ jQuery(document).ready(function(){
 		var authKey = readCookie('apiAuthKey');
 		var username = "";
 		//Start doing stuff
-		jQuery(usersTable).DataTable();
-		jQuery(logsTable).dataTable( {
-	        "order": [[ 0, "desc" ]]
-	    } );
-	} );
 		
 		//when someone searches for a minecraft username
 		usernameSearchSubmit.click(function(){
@@ -25,7 +24,7 @@ jQuery(document).ready(function(){
 			.success(function( data ) {
 				var uuid = JSON.parse(data).uuid;
 				if(uuid){
-					usersTable.search(uuid).draw();
+					userTable.search(uuid).draw();
 				}else{
 					alert("That is not a valid minecraft username.");
 				}
@@ -35,8 +34,8 @@ jQuery(document).ready(function(){
 		//clear search
 		usernameSearchClear.click(function(){
 			usernameSearchField.val('');
-			jQuery(".datausersTables_filter label input").val('');
-			usersTable.search('').draw();
+			jQuery(".dataTables_filter label input").val('');
+			userTable.search('').draw();
 	    });
 		
 		uuidLink.click(function(e){
@@ -53,7 +52,7 @@ jQuery(document).ready(function(){
 				if(data.success){
 					var services = data.bans.service;
 					var username = data.bans.username;
-					var html = '<usersTable>';
+					var html = '<table>';
 							html += '<thead>';
 								html += '<tr>';
 								html += '<th>Service</th>';

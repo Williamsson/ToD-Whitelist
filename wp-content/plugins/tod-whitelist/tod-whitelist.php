@@ -215,14 +215,14 @@ class todWhitelist extends WP_Widget {
 			$page .= '<div id="tod-whitelist-content-wrapper">';
 				$page .= '<table id="usersTable" class="display nowrap dataTable dtr-inline">';
 					$page .= '<thead>';
-						$page .= '<tr role="row">';
-							$page .= '<th>Whitelisted at</th>';
-							$page .= '<th>UUID</th>';
-							$page .= '<th>Email</th>';
-							$page .= '<th>Staff Experience</th>';
-							$page .= '<th>Description</th>';
-							$page .= '<th>Action</th>';
-						$page .= '</tr>';
+					$page .= '<tr role="row">';
+					$page .= '<th>Whitelisted at</th>';
+					$page .= '<th>UUID</th>';
+					$page .= '<th>Email</th>';
+					$page .= '<th>Staff Experience</th>';
+					$page .= '<th>Description</th>';
+					$page .= '<th>Action</th>';
+					$page .= '</tr>';
 					$page .= '</thead>';
 					$page .= '<tbody>';
 					if($data){
@@ -376,9 +376,9 @@ class todWhitelist extends WP_Widget {
 	}
 	
 	public function activationPage(){
-		$authKey = sanitize_text_field($_GET['id']);
-		if(!empty($authKey)){
+		if(!empty($_GET['id'])){
 			global $wpdb;
+			$authKey = sanitize_text_field($_GET['id']);
 			
 			$data = $wpdb->get_results("SELECT id, username_temp FROM " . $this->userVerificationsTable ." WHERE verification_key = '$authKey'");
 			if($data){
@@ -414,8 +414,10 @@ class todWhitelist extends WP_Widget {
 								$state = $this->checkUuidState($uuid);
 								if(!$state){
 									$prevExp = "";
-									foreach($_POST['prevExp'] as $exp){
-										$prevExp = $prevExp . $exp . ", ";
+									if(!empty($_POST['prevExp'])){
+										foreach($_POST['prevExp'] as $exp){
+											$prevExp = $prevExp . $exp . ", ";
+										}
 									}
 									$prevExp = sanitize_text_field($prevExp);
 									$desc = sanitize_text_field($_POST['description']);
@@ -434,7 +436,7 @@ class todWhitelist extends WP_Widget {
 									if($res){
 										$lastid = $wpdb->insert_id;
 										$authKey = substr(md5(rand()), 0, 15);
-										
+			
 										$res = $wpdb->insert(
 												$this->userVerificationsTable,
 												array(
@@ -455,7 +457,7 @@ class todWhitelist extends WP_Widget {
 			
 											$mailContent .= "<p>Best regards,<br/>
 																	the Tales of Dertinia staff</p>";
-			
+											
 											$res = $this->sendEmail($email, $headers, $mailContent, "Tales of Dertinia Whitelist Application");
 			
 											if($res){
@@ -517,47 +519,46 @@ class todWhitelist extends WP_Widget {
 		}
 	}
 	
-	private function forumAccountHandler($action="add", $username, $pwd, $email){
-		global $db, $wpdb, $phpEx;
-		$phpEx = "php";
+	private function forumAccountHandler($action, $username, $pwd, $email){
+		global $db, $wpdb, $config;
 		
 		define('FORUM_ADD',TRUE);
 		define('IN_PHPBB',TRUE);
 		define('IN_PORTAL',TRUE);
 		
-		include_once(plugin_dir_path(__FILE__) . '/phpbb/common.php');
-		include_once(plugin_dir_path(__FILE__) . '/phpbb/includes/functions.php');
-		include_once(plugin_dir_path(__FILE__) . '/phpbb/includes/functions_user.php');
-		global $config;
+		require_once(plugin_dir_path(__FILE__) . '/phpbb/common.php');
+		require_once(plugin_dir_path(__FILE__) . '/phpbb/includes/functions.php');
+		require_once(plugin_dir_path(__FILE__) . '/phpbb/includes/functions_user.php');
+		
 		switch($action){
 			case 'add':
-				
 				if(!validate_phpbb_username($username)){
-					return false;	
-				}
-				
-				$group_id = 2;
-				$language = 'en';
-				$user_type = USER_NORMAL;
-				$is_dst = date('I');
-				$timezone = '+1';
-				
-				$user_row = array(
-						'username'              => $username,
-						'user_password'         => $pwd,
-						'user_email'            => $email,
-						'group_id'              => (int) $group_id,
-						'user_timezone'         => (float) $timezone,
-						'user_dst'              => $is_dst,
-						'user_lang'             => $language,
-						'user_type'             => $user_type,
-						'user_regdate'          => time()
-				);
 					
-				// all the information has been compiled, add the user
-				// tables affected: users table, profile_fields_data table, groups table, and config table.
-				$createdUser = user_add($user_row);
-				return $createdUser;
+					$group_id = 2;
+					$language = 'en';
+					$user_type = USER_NORMAL;
+					$is_dst = date('I');
+					$timezone = '+1';
+					
+					$user_row = array(
+							'username'              => $username,
+							'user_password'         => $pwd,
+							'user_email'            => $email,
+							'group_id'              => (int) $group_id,
+							'user_timezone'         => (float) $timezone,
+							'user_dst'              => $is_dst,
+							'user_lang'             => $language,
+							'user_type'             => $user_type,
+							'user_regdate'          => time()
+					);
+						
+					// all the information has been compiled, add the user
+					// tables affected: users table, profile_fields_data table, groups table, and config table.
+					$createdUser = user_add($user_row);
+					return $createdUser;
+				}else{
+					return false;
+				}
 				break;
 			
 			case 'delete':
@@ -574,8 +575,7 @@ class todWhitelist extends WP_Widget {
 		$email = $res[0]->email;
 		
 		$pwd = wp_generate_password(9, true);
-		$userExists = username_exists( $username );
-		if (!$userExists and email_exists($email) == false ) {
+		if (!username_exists( $username ) && email_exists($email) == false ) {
 			if(wp_create_user( $username, $pwd, $email )){
 				$this->addLogEntry("Created WP account for $username");
 			}else{
@@ -593,18 +593,20 @@ class todWhitelist extends WP_Widget {
 		$message .= "To fully enjoy this, we advice you to regularly visit our website and our forums.<br/>";
 		$message .= "To make things easier for you we've automagically registered these for you!</p>";
 		$message .= "<br/><h2>Tales of Dertinia Website:</h2>";
-		
+
 		if(!$userExists){
+			$this->addLogEntry("Creating website user for $username");
 			$message .="<p>Username: $username</p>";
 			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
 		}else{
+			$this->addLogEntry("Website account already exists for $username");
 			$message .="<p>Oh! You already had an account here. In that case you know your credentials better than we do.<br/>
 							Should there be any problems just email us and we'll take a look at it.</p>";
 		}
 		
 		$forumAcc = $this->forumAccountHandler("add", $username,md5($pwd),$email);
-		
 		$message .="<br/><h2>Tales of Dertinia Forum:</h2>";
+		
 		if($forumAcc){
 			$this->addLogEntry("Created forum acc for $username");
 			$message .="<p>Username: $username</p>";
@@ -628,6 +630,8 @@ class todWhitelist extends WP_Widget {
 		}else{
 			$this->addLogEntry("Failed to send welcome mail to $username");
 		}
+		
+		
 	}
 	
 	protected function checkEmailExists($email){
