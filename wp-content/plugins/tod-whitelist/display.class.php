@@ -5,6 +5,8 @@ class display extends todWhitelist{
 	public function __construct(){
 		add_action( 'admin_enqueue_scripts', array(&$this,'loadAdminScripts'));
 		add_action('admin_menu', array(&$this, 'addAdminMenuItem'));
+		add_shortcode( 'todwhitelistregister', array(&$this, 'registerPageShortcode' ) );
+		add_shortcode( 'todwhitelistactivate', array(&$this, 'activationPageShortcode' ) );
 	}
 	
 	public function loadAdminScripts($hook_suffix){
@@ -16,9 +18,74 @@ class display extends todWhitelist{
 		wp_enqueue_script( 'zebra_dialog', get_stylesheet_directory_uri() . '/zebra-dialog/zebra_dialog.js', array(), '1.0.0', true );
 	}
 	
-	public function activationPage(){
+	public function activationPageShortcode($atts, $content = ""){
+		return $this->getActivationPageContent();
+	}
+	
+	public function getActivationPageContent(){
 		
-		the_content();
+	}
+	
+	public function registerPageShortcode( $atts, $content = "" ) {
+		return $this->getRegistrationPageContent();
+	}
+	
+	public function getRegistrationPageContent(){
+		if(isset($_POST['whitelistSubmit'])){
+			require_once("user.class.php");
+			$user = new user();
+			$content = $user->userRegistration();
+		}else{
+			return '<p>No data recieved, you need to fill out the form in the right panel.</p>';
+		}
+	}
+	
+	public function getLogs(){
+		global $wpdb;
+		$table = $this->getConf('logTable');
+		$data = $wpdb->get_results(
+				"SELECT id,content,resolved,date FROM $table"
+		);
+		if($data){
+			$return = array();
+			foreach($data as $log){
+				$temp = array();
+				$temp['id'] = $log->id;
+				$temp['content'] = $log->content;
+				$temp['resolved'] = $log->resolved;
+				$temp['date'] = $log->date;
+	
+				$return[] = $temp;
+			}
+			return $return;
+		}
+		return false;
+	}
+	
+	public function getAllUsers($state){
+		global $wpdb;
+		
+		$table = $this->getConf('dataTable');
+		
+		$data = $wpdb->get_results(
+				"SELECT id,uuid,time,email,prevExp,description FROM $table WHERE state = '$state'"
+		);
+		if($data){
+			$return = array();
+			foreach($data as $user){
+				$temp = array();
+				$temp['id'] = $user->id;
+				$temp['uuid'] = $user->uuid;
+				$temp['time'] = $user->time;
+				$temp['email'] = $user->email;
+				$temp['prevExp'] = $user->prevExp;
+				$temp['description'] = $user->description;
+				
+				$return[] = $temp;
+			}
+			return $return;
+		}
+		return false;
 	}
 	
 	public function addAdminMenuItem(){

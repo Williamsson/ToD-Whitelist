@@ -6,6 +6,102 @@ class user extends todWhitelist{
 		
 	}
 	
+	public function userRegistration(){
+		$email = sanitize_text_field($_POST['email']);
+		$username = sanitize_text_field($_POST['username']);
+		$completeRegistration = true;
+		$doAuthentication = true;
+		$errors = array();
+		
+		if($this->checkEmailExists($email)){
+			$completeRegistration = false;
+			$errors[] = "We already have this email registered to a player.";
+		}
+		$uuid = $this->getUserUUID($username);
+		
+		$uuid = json_decode($uuid);
+		$uuid = $uuid->uuid;
+		
+		$userState = $this->getUuidState($uuid);
+		
+		if($userState){
+			$completeRegistration = false;
+			$errors[] = "This username is already registered. Current state: $userState";
+		}
+		
+		if($completeRegistration){
+			$doAuthitentication = true;
+			global $wpdb;
+			
+			$prevExp = "";
+			if(!empty($_POST['prevExp'])){
+				foreach($_POST['prevExp'] as $exp){
+					$prevExp = $prevExp . $exp . ", ";
+				}
+			}
+			$prevExp = sanitize_text_field($prevExp);
+			$desc = sanitize_text_field($_POST['description']);
+			
+			$res = $wpdb->insert(
+				$this->getConf('dataTable'),
+				array(
+					'uuid'	=> $uuid,
+					'email'	=> $email,
+					'prevExp'	=> $prevExp,
+					'description'	=> $desc,
+					'state'			=> 'pending'
+				)
+			);
+			if(!$res){
+				$doAuthentication = false;
+				$errors[] = "Critical error: Failed to whitelist. Try again later. Staff has been notified";
+				//@TODO: Add log entry, send email to staff
+			}
+			
+			if($doAuthentication){
+				$lastid = $wpdb->insert_id;
+				$authKey = substr(md5(rand()), 0, 15);
+				
+				$res = $wpdb->insert(
+						$this->getConf('verificationTable'),
+						array(
+								'id'				=> $lastid,
+								'verification_key'	=> $authKey,
+								'username_temp'		=> $username
+						)
+				);
+				if($res){
+					$mailContent = "<h1>Welcome!</h1>";
+					$mailContent .= "<p>In order to become whitelisted you need to activate your account with the link below:</p>";
+					$mailContent .= "<a href='http://talesofdertinia.com/activation?id=$authKey'>Activate account with this link</a>";
+			
+					$mailContent .= "<p>Does the link not work? Copy and paste this: http://talesofdertinia.com/activation?id=$authKey</p>";
+			
+					$mailContent .= "<p>Best regards,<br/>
+									the Tales of Dertinia staff</p>";
+					$mailSent = $this->sendEmail($email, "", $mailContent, "Tales of Dertinia Whitelist");
+					if($mailContent){
+						unset($_POST['username']);
+						unset($_POST['email']);
+						unset($_POST['description']);
+						$this->addLogEntry("Sent auth email to $email");
+						return true;
+					}
+					$this->addLogEntry("Failed to send auth email to $email");
+					//This part is completed and works fine.
+					// @TODO: URL shouldn't be hardcoded, it should find out what domain it is on
+					return false;
+				}else{
+					$errors[] = "Critical error: Failed to generate authentication. A staff member will send a email to you within 1-5 days.";
+					// @TODO: Add log entry, automated email to staff
+				}
+			}
+			
+		}	
+		
+		return $errors;
+	}
+	
 	private function setUserState($id, $state){
 		global $wpdb;
 		$wpdb->update($this->getConf('dataTable'), array( 'state' => $state),array('id'=>$id));
@@ -67,7 +163,7 @@ class user extends todWhitelist{
 	
 	private function createAccounts($id, $username){
 		global $wpdb;
-		$res = $wpdb->get_results("SELECT email FROM " . $this->getConf('dataTable'); . " WHERE id = $id", OBJECT);
+		$res = $wpdb->get_results("SELECT email FROM " . $this->getConf('dataTable') . " WHERE id = $id", OBJECT);
 	
 		$email = $res[0]->email;
 	
@@ -131,18 +227,19 @@ class user extends todWhitelist{
 	
 	private function checkEmailExists($email){
 		global $wpdb;
-		if($wpdb->get_results("SELECT id FROM " . $this->getConf('dataTable'); ." WHERE email = '$email'")){
+		if($wpdb->get_results("SELECT id FROM " . $this->getConf('dataTable') ." WHERE email = '$email'")){
 			return true;
 		}
 		return false;
 	}
 	
 	//Returns false if uuid dosen't exist, returns the state if the uuid exists
-	private function checkUuidState($uuid){
+	private function getUuidState($uuid){
 		global $wpdb;
-		$state = $wpdb->get_results("SELECT state FROM " . $this->getConf('dataTable'); . " WHERE uuid = '$uuid'");
+		$state = $wpdb->get_results("SELECT state FROM " . $this->getConf('dataTable') . " WHERE uuid = '$uuid'");
 		if($state){
 			return $state;
 		}
 		return false;
 	}
+} //End of class

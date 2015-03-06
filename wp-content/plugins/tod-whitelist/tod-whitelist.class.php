@@ -79,61 +79,18 @@ class todWhitelist {
 	}
 	
 	protected function getConf($val = ""){
-		require_once("inc/config.php");
+		$pluginConf = array(
+			'dataTable'			=> 'wp_tod_user_data',
+			'verificationTable'	=> 'wp_tod_user_verifications',
+			'recruitmentTable'	=> 'wp_tod_user_recruitment',
+			'logTable'			=> 'wp_tod_error_log'
+		);
 		
 		if(empty($val)){
 			return $pluginConf;
 		}else{
 			return $pluginConf[$val];
 		}
-	}
-	
-	protected function getLogs(){
-		global $wpdb;
-		$table = $this->getConf('logTable');
-		$data = $wpdb->get_results(
-				"SELECT id,content,resolved,date FROM $table"
-		);
-		if($data){
-			$return = array();
-			foreach($data as $log){
-				$temp = array();
-				$temp['id'] = $log->id;
-				$temp['content'] = $log->content;
-				$temp['resolved'] = $log->resolved;
-				$temp['date'] = $log->date;
-	
-				$return[] = $temp;
-			}
-			return $return;
-		}
-		return false;
-	}
-	
-	protected function getAllUsers($state){
-		global $wpdb;
-		
-		$table = $this->getConf('dataTable');
-		
-		$data = $wpdb->get_results(
-				"SELECT id,uuid,time,email,prevExp,description FROM $table WHERE state = '$state'"
-		);
-		if($data){
-			$return = array();
-			foreach($data as $user){
-				$temp = array();
-				$temp['id'] = $user->id;
-				$temp['uuid'] = $user->uuid;
-				$temp['time'] = $user->time;
-				$temp['email'] = $user->email;
-				$temp['prevExp'] = $user->prevExp;
-				$temp['description'] = $user->description;
-	
-				$return[] = $temp;
-			}
-			return $return;
-		}
-		return false;
 	}
 	
 	protected function setApiAuthCookie(){
@@ -144,6 +101,11 @@ class todWhitelist {
 	}
 	
 	protected function sendEmail($to, $headers, $message, $title){
+		if(empty($headers)){
+			$headers[] = 'From: Tales of Dertinia Staff <info@talesofdertinia.com>';
+			$headers[] = 'Content-Type: text/html; charset=UTF-8';
+		}
+		
 		if(wp_mail($to, $title, $message, $headers)){
 			return true;
 		}
@@ -154,7 +116,7 @@ class todWhitelist {
 		global $wpdb;
 		
 		$wpdb->insert(
-				$this->errorLogTable,
+				$this->getConf('logTable'),
 				array(
 						'content'	=> $msg
 				)

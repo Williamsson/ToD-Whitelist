@@ -1,17 +1,16 @@
 <?php 
 
 function getUUID($username=""){
-	if($username = ""){
+	if($username == ""){
 		$username = $_GET['username'];
 	}
-	sanitize_text_field($username);
 	if(!isset($username)){
 		header('HTTP/1.0 400 Bad Request', true, 400);
 		return false;
 		exit;
 	}
-	$url = "http://api.fishbans.com/uuid/" . $username;
-	return curlOut($url);
+	sanitize_text_field($username);
+	return curlOut("http://api.fishbans.com/uuid/" . $username);
 }
 
 function getUsernameFromUUID($uuid=""){
