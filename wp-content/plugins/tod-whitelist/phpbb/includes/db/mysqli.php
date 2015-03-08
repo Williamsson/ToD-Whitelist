@@ -24,8 +24,7 @@ require_once($phpbb_root_path . 'includes/db/dbal.php');
 * MySQL 4.1+ or MySQL 5.0+
 * @package dbal
 */
-class dbal_mysqli extends dbal
-{
+class dbal_mysqli extends dbal{
 	var $multi_insert = true;
 	var $connect_error = '';
 

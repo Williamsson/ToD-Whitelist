@@ -26,7 +26,7 @@ class user extends todWhitelist{
 		
 		if($userState){
 			$completeRegistration = false;
-			$errors[] = "This username is already registered. Current state: $userState";
+			$errors[] = "This username is already registered. Current state: " . $userState;
 		}
 		
 		if($completeRegistration){
@@ -55,7 +55,8 @@ class user extends todWhitelist{
 			if(!$res){
 				$doAuthentication = false;
 				$errors[] = "Critical error: Failed to whitelist. Try again later. Staff has been notified";
-				//@TODO: Add log entry, send email to staff
+				$this->addLogEntry("SEVERE: " . $wpdb->print_error());
+				$this->sendEmail("info@talesofdertinia.com", "", "Severe error while inserting to database", "ToD Whitelist Severe Error");
 			}
 			
 			if($doAuthentication){
@@ -73,10 +74,10 @@ class user extends todWhitelist{
 				if($res){
 					$mailContent = "<h1>Welcome!</h1>";
 					$mailContent .= "<p>In order to become whitelisted you need to activate your account with the link below:</p>";
-					$mailContent .= "<a href='http://talesofdertinia.com/activation?id=$authKey'>Activate account with this link</a>";
-			
-					$mailContent .= "<p>Does the link not work? Copy and paste this: http://talesofdertinia.com/activation?id=$authKey</p>";
-			
+					$mailContent .= "<a href='http://" . $_SERVER['SERVER_NAME'] . "/activation?id=$authKey'>Activate account with this link</a>";
+					
+					$mailContent .= "<p>Does the link not work? Copy and paste this: http://" . $_SERVER['SERVER_NAME'] . "/activation?id=$authKey</p>";
+					
 					$mailContent .= "<p>Best regards,<br/>
 									the Tales of Dertinia staff</p>";
 					$mailSent = $this->sendEmail($email, "", $mailContent, "Tales of Dertinia Whitelist");
@@ -88,18 +89,38 @@ class user extends todWhitelist{
 						return true;
 					}
 					$this->addLogEntry("Failed to send auth email to $email");
-					//This part is completed and works fine.
-					// @TODO: URL shouldn't be hardcoded, it should find out what domain it is on
 					return false;
 				}else{
 					$errors[] = "Critical error: Failed to generate authentication. A staff member will send a email to you within 1-5 days.";
-					// @TODO: Add log entry, automated email to staff
+					$this->addLogEntry("CRITICAL: " . $wpdb->print_error());
+					$this->sendEmail("info@talesofdertinia.com", "", "Critical error while inserting to database", "ToD Whitelist Critical Error");
 				}
 			}
-			
 		}	
-		
 		return $errors;
+	}
+	
+	public function authenticateUser($authKey){
+		global $wpdb;
+//		$verificationTable = $this->getConf('verificationTable');
+//		$data = $wpdb->get_results("SELECT id, username_temp FROM " . $verificationTable ." WHERE verification_key = '$authKey'");
+		$data = $wpdb->get_results("SELECT dt.email, vt.id, vt.username_temp
+							FROM " . $this->getConf('dataTable') . " AS dt
+							LEFT JOIN " . $this->getConf('verificationTable') . " AS vt
+							ON dt.id = vt.id
+							WHERE vt.verification_key = '$authKey'", OBJECT);
+			if($data){
+				$username = $data[0]->username_temp;
+				$email = $data[0]->email;
+				$id = $data[0]->id;
+				
+				$this->setUserState($id, 'whitelisted');
+//				$wpdb->delete($verificationTable,array('id'=>$id));
+				
+				$accountsCreated = $this->createAccounts($id, $username, $email);
+				
+			}
+		
 	}
 	
 	private function setUserState($id, $state){
@@ -114,14 +135,15 @@ class user extends todWhitelist{
 	
 	private function forumAccountHandler($action, $username, $pwd, $email){
 		global $db, $wpdb, $config;
+		$phpbb_root_path = plugin_dir_path(__FILE__) . "phpbb/";
 		
 		define('FORUM_ADD',TRUE);
 		define('IN_PHPBB',TRUE);
 		define('IN_PORTAL',TRUE);
 		
-		require_once(plugin_dir_path(__FILE__) . '/phpbb/common.php');
-		require_once(plugin_dir_path(__FILE__) . '/phpbb/includes/functions.php');
-		require_once(plugin_dir_path(__FILE__) . '/phpbb/includes/functions_user.php');
+		require_once($phpbb_root_path . 'common.php');
+		require_once($phpbb_root_path . 'includes/functions.php');
+		require_once($phpbb_root_path . 'includes/functions_user.php');
 		
 		switch($action){
 			case 'add':
@@ -161,14 +183,15 @@ class user extends todWhitelist{
 	
 	}
 	
-	private function createAccounts($id, $username){
+	//ID corresponds to AI value in db table tod_user_data and is used to fetch email
+	//Username is the name of the account, fetched from username_temp in verificationTables
+	//Email is what email the welcome mail should be sent to
+	private function createAccounts($id, $username, $email){
 		global $wpdb;
-		$res = $wpdb->get_results("SELECT email FROM " . $this->getConf('dataTable') . " WHERE id = $id", OBJECT);
-	
-		$email = $res[0]->email;
 	
 		$pwd = wp_generate_password(9, true);
 		if (!username_exists( $username ) && email_exists($email) == false ) {
+			//@TODO: It seems to not care about the already-exists-check. fix that.
 			if(wp_create_user( $username, $pwd, $email )){
 				$this->addLogEntry("Created WP account for $username");
 			}else{
@@ -178,9 +201,6 @@ class user extends todWhitelist{
 	
 		//Start making a welcome mail
 		
-		$headers[] = 'From: Tales of Dertinia Staff <info@talesofdertinia.com>';
-		$headers[] = 'Content-Type: text/html; charset=UTF-8';
-	
 		$message = "<h1>All done!</h1>";
 		$message .= "<p>Now that you're whitelisted we've made you a member of our community!<br/>";
 		$message .= "To fully enjoy this, we advice you to regularly visit our website and our forums.<br/>";
@@ -218,7 +238,7 @@ class user extends todWhitelist{
 		$message .= "<p>Best regards,<br/>
 						the Tales of Dertinia staff.</p>";
 	
-		if($this->sendEmail($email, $headers, $message, "Welcome to the Tales of Dertinia community!")){
+		if($this->sendEmail($email, "", $message, "Welcome to the Tales of Dertinia community!")){
 			$this->addLogEntry("Sent welcome email to $username");
 		}else{
 			$this->addLogEntry("Failed to send welcome mail to $username");
@@ -238,7 +258,7 @@ class user extends todWhitelist{
 		global $wpdb;
 		$state = $wpdb->get_results("SELECT state FROM " . $this->getConf('dataTable') . " WHERE uuid = '$uuid'");
 		if($state){
-			return $state;
+			return $state[0]->state;
 		}
 		return false;
 	}

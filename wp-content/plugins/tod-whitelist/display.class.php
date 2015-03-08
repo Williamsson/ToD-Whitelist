@@ -23,7 +23,16 @@ class display extends todWhitelist{
 	}
 	
 	public function getActivationPageContent(){
-		
+		if(isset($_GET['id'])){
+			require_once("user.class.php");
+			$user = new user();
+			$authId = sanitize_text_field($_GET['id']);
+			$auth = $user->authenticateUser($authId);
+		}else{
+			return "<h1>No authentication key provided</h1>
+					<p>This page is worthless to you. No need to be here. At all. Like, really. It's not as if I'm dropping knowledge on you or anything. This page only exists for those with a proper authentication key. And you don't have one. At least you haven't brought it. I know these things. For I am the almighty.</p>
+					<p>In other news, did you know that simplistic passwords contribute to over 80% of all computer password break-ins? Or that peanuts are one of the ingredients of dynamite? The world is filled with curious little facts, if you only broaden your views.</p>";
+		}
 	}
 	
 	public function registerPageShortcode( $atts, $content = "" ) {
@@ -34,7 +43,17 @@ class display extends todWhitelist{
 		if(isset($_POST['whitelistSubmit'])){
 			require_once("user.class.php");
 			$user = new user();
-			$content = $user->userRegistration();
+			$registration = $user->userRegistration();
+			if(!is_array($registration)){
+				return '<h1>Whitelist completed!</h1>
+						<p>Check your email to verify and complete the registration.</p>';
+			}
+			$return = "<ul>";
+			foreach($registration as $error){
+				$return .= "<li>$error</li>";
+			}
+			$return .= "</ul>";
+			return $return;
 		}else{
 			return '<p>No data recieved, you need to fill out the form in the right panel.</p>';
 		}

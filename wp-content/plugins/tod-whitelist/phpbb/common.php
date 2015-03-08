@@ -14,14 +14,13 @@
 
 //$phpbb_root_path = "./wp-content/plugins/tod-whitelist/phpbb/";
 
-//if (file_exists($phpbb_root_path . 'config.php'))
-//{
-//	require_once($phpbb_root_path . 'config.php');
-//}
+if (file_exists($phpbb_root_path . 'config.php'))
+{
+	require($phpbb_root_path . 'config.php');
+}
 
 require_once($phpbb_root_path . 'includes/constants.php');
 require_once($phpbb_root_path . 'includes/db/mysqli.php');
-
 
 $db	= new $sql_db();
 
