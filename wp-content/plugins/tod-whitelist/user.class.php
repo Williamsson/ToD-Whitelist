@@ -191,7 +191,7 @@ class user extends todWhitelist{
 	
 		$pwd = wp_generate_password(9, true);
 		if (!username_exists( $username ) && email_exists($email) == false ) {
-			//@TODO: It seems to not care about the already-exists-check. fix that.
+			//@TODO: This check is worthless and does nothing. It attempts to create accounts all the time, but it never does. Wtf. Fix this.
 			if(wp_create_user( $username, $pwd, $email )){
 				$this->addLogEntry("Created WP account for $username");
 			}else{
@@ -237,7 +237,7 @@ class user extends todWhitelist{
 	
 		$message .= "<p>Best regards,<br/>
 						the Tales of Dertinia staff.</p>";
-	
+		//@TODO: This email wasn't sent. If it was because of faulty variables or whatnot, or if my connection dropped two times when I wanted to send it, I don't know. Investigate and fix. Note that this is the email that users seldom recieved in version 1.0
 		if($this->sendEmail($email, "", $message, "Welcome to the Tales of Dertinia community!")){
 			$this->addLogEntry("Sent welcome email to $username");
 		}else{
