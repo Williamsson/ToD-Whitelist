@@ -1,46 +1,41 @@
-<?php 
-
+﻿<?php 
 function getUUID($username=""){
-	if($username == ""){
-		$username = $_GET['username'];
-	}
-	if(!isset($username)){
-		header('HTTP/1.0 400 Bad Request', true, 400);
-		return false;
-		exit;
-	}
-	sanitize_text_field($username);
+	if($username == ""){		
+		$username = $_GET['username'];	
+	}	
+	if(!isset($username)){		
+		header('HTTP/1.0 400 Bad Request', true, 400);		
+		return false;		
+		exit;	
+	}	
+	sanitize_text_field($username);	
 	return curlOut("http://api.fishbans.com/uuid/" . $username);
 }
 
 function getUsernameFromUUID($uuid=""){
-	if($uuid == ""){
-		$uuid = $_GET['uuid'];
-	}
-	
-	if(!isset($uuid)){
-		header('HTTP/1.0 400 Bad Request', true, 400);
-		exit;
-	}
-	$url = "https://api.mojang.com/user/profiles/" . $uuid . "/names";
-	$data = json_decode(curlOut($url));
-	foreach ($data as $obj){
-		$currentName = $obj->name;
-	}
+	if($uuid == ""){	
+		$uuid = $_GET['uuid'];	
+	}		
+	if(!isset($uuid)){		
+		header('HTTP/1.0 400 Bad Request', true, 400);		
+		exit;	
+	}	
+	$url = "https://api.mojang.com/user/profiles/" . $uuid . "/names";	
+	$data = json_decode(curlOut($url));	
+	foreach ($data as $obj){		
+		$currentName = $obj->name;	
+	}	
 	return $currentName;
 }
 
-function checkBans(){
-	$uuid = $_GET['uuid'];
-
-	if(!isset($uuid)){
-		header('HTTP/1.0 400 Bad Request', true, 400);
-		exit;
-	}
-	$username = getUsernameFromUUID($uuid);
-
+function checkBans(){	
+	$uuid = $_GET['uuid'];		
+	if(!isset($uuid)){		
+		header('HTTP/1.0 400 Bad Request', true, 400);		
+		exit;	
+	}	
+	$username = getUsernameFromUUID($uuid);	
 	$url = "http://api.fishbans.com/bans/" . $username;
-
 	echo curlOut($url);
 }
 

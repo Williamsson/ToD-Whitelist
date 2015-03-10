@@ -1,9 +1,8 @@
 <?php 
-require_once("../config.php");
-
+require_once("config.php");
+require_once("api.functions.php");
 if(isset($_GET['auth']) && $_GET['auth'] == $authKey){
 	$action = $_GET['request'];
-	
 	if(in_array($action, $allowedFunctions)){
 		$action();
 	}else{
@@ -13,4 +12,3 @@ if(isset($_GET['auth']) && $_GET['auth'] == $authKey){
 }else{
 	header('HTTP/1.0 403 Forbidden');
 }
-require_once("api.functions.php");

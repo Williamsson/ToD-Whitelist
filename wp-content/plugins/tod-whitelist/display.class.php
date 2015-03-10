@@ -9,6 +9,7 @@ class display extends todWhitelist{
 	}
 	
 	public function loadAdminScripts($hook_suffix){
+		$this->setApiAuthCookie();
 		wp_enqueue_script( "dataTables", "//cdn.datatables.net/1.10.5/js/jquery.dataTables.min.js" );
 		wp_enqueue_style('datatablesCSS', "//cdn.datatables.net/1.10.5/css/jquery.dataTables.min.css");
 		wp_enqueue_style('tod-whitelist-css', "/wp-content/plugins/tod-whitelist/css/style.css");
@@ -122,11 +123,12 @@ class display extends todWhitelist{
 		if ( !current_user_can( 'manage_options' ) )  {
 			wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
 		}
-	
 		if(isset($_POST['changeUserState'])){
-			$this->setUserState($_POST['id'], $_POST['state']);
+			require_once("user.class.php");
+			$user = new user();
+			$user->setUserState($_POST['id'], $_POST['state']);
 		}
-	
+		
 		if(isset($_GET['tab'])){
 			$current = $_GET['tab'];
 		}else{
