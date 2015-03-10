@@ -1,5 +1,4 @@
 <?php 
-
 class display extends todWhitelist{
 	
 	public function __construct(){
@@ -28,6 +27,14 @@ class display extends todWhitelist{
 			$user = new user();
 			$authId = sanitize_text_field($_GET['id']);
 			$auth = $user->authenticateUser($authId);
+			
+			if($auth){
+				return '<h1>All done!</h1>
+						<p>Everything is complete and you have receieved a email with credentials for our websites. Welcome to the Tales of Dertinia community!</p>';
+			}
+			return '<h1>Something went wrong</h1>
+						<p>Try again later or try contacting us on the "Contact" page.</p>';
+			
 		}else{
 			return "<h1>No authentication key provided</h1>
 					<p>This page is worthless to you. No need to be here. At all. Like, really. It's not as if I'm dropping knowledge on you or anything. This page only exists for those with a proper authentication key. And you don't have one. At least you haven't brought it. I know these things. For I am the almighty.</p>
@@ -45,7 +52,7 @@ class display extends todWhitelist{
 			$user = new user();
 			$registration = $user->userRegistration();
 			if(!is_array($registration)){
-				return '<h1>Whitelist completed!</h1>
+				return '<h1>First part completed!</h1>
 						<p>Check your email to verify and complete the registration.</p>';
 			}
 			$return = "<ul>";

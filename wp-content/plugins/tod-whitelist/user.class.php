@@ -45,9 +45,9 @@ class user extends todWhitelist{
 			$res = $wpdb->insert(
 				$this->getConf('dataTable'),
 				array(
-					'uuid'	=> $uuid,
-					'email'	=> $email,
-					'prevExp'	=> $prevExp,
+					'uuid'			=> $uuid,
+					'email'			=> $email,
+					'prevExp'		=> $prevExp,
 					'description'	=> $desc,
 					'state'			=> 'pending'
 				)
@@ -88,7 +88,7 @@ class user extends todWhitelist{
 						$this->addLogEntry("Sent auth email to $email");
 						return true;
 					}
-					$this->addLogEntry("Failed to send auth email to $email");
+					$this->addLogEntry("CRITICAL: Failed to send auth email to $email");
 					return false;
 				}else{
 					$errors[] = "Critical error: Failed to generate authentication. A staff member will send a email to you within 1-5 days.";
@@ -102,8 +102,6 @@ class user extends todWhitelist{
 	
 	public function authenticateUser($authKey){
 		global $wpdb;
-//		$verificationTable = $this->getConf('verificationTable');
-//		$data = $wpdb->get_results("SELECT id, username_temp FROM " . $verificationTable ." WHERE verification_key = '$authKey'");
 		$data = $wpdb->get_results("SELECT dt.email, vt.id, vt.username_temp
 							FROM " . $this->getConf('dataTable') . " AS dt
 							LEFT JOIN " . $this->getConf('verificationTable') . " AS vt
@@ -115,11 +113,11 @@ class user extends todWhitelist{
 				$id = $data[0]->id;
 				
 				$this->setUserState($id, 'whitelisted');
-//				$wpdb->delete($verificationTable,array('id'=>$id));
-				
-				$accountsCreated = $this->createAccounts($id, $username, $email);
-				
+				$wpdb->delete($verificationTable,array('id'=>$id));				
+				$this->createAccounts($id, $username, $email);
+				return true;
 			}
+			return false;
 		
 	}
 	
@@ -129,7 +127,7 @@ class user extends todWhitelist{
 	}
 	
 	private function getUserUUID($username){
-		require_once("/api/api.functions.php");
+		require_once("api/api.functions.php");
 		return getUUID($username);
 	}
 	
@@ -188,17 +186,21 @@ class user extends todWhitelist{
 	//Email is what email the welcome mail should be sent to
 	private function createAccounts($id, $username, $email){
 		global $wpdb;
-	
+		$wpUserExists = false;
 		$pwd = wp_generate_password(9, true);
+		
 		if (!username_exists( $username ) && email_exists($email) == false ) {
+			$wpUserExists = true;
 			//@TODO: This check is worthless and does nothing. It attempts to create accounts all the time, but it never does. Wtf. Fix this.
 			if(wp_create_user( $username, $pwd, $email )){
 				$this->addLogEntry("Created WP account for $username");
 			}else{
-				$this->addLogEntry("WP account already exists for $username");
+				$this->addLogEntry("Failed to create WP account for $username");
 			}
+		}else{
+				$this->addLogEntry("WP account already exists for $username");
 		}
-	
+		
 		//Start making a welcome mail
 		
 		$message = "<h1>All done!</h1>";
@@ -207,16 +209,14 @@ class user extends todWhitelist{
 		$message .= "To make things easier for you we've automagically registered these for you!</p>";
 		$message .= "<br/><h2>Tales of Dertinia Website:</h2>";
 	
-		if(!$userExists){
-			$this->addLogEntry("Creating website user for $username");
+		if(!$wpUserExists){
 			$message .="<p>Username: $username</p>";
 			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
 		}else{
-			$this->addLogEntry("Website account already exists for $username");
 			$message .="<p>Oh! You already had an account here. In that case you know your credentials better than we do.<br/>
 							Should there be any problems just email us and we'll take a look at it.</p>";
 		}
-	
+		
 		$forumAcc = $this->forumAccountHandler("add", $username,md5($pwd),$email);
 		$message .="<br/><h2>Tales of Dertinia Forum:</h2>";
 	
@@ -241,7 +241,7 @@ class user extends todWhitelist{
 		if($this->sendEmail($email, "", $message, "Welcome to the Tales of Dertinia community!")){
 			$this->addLogEntry("Sent welcome email to $username");
 		}else{
-			$this->addLogEntry("Failed to send welcome mail to $username");
+			$this->addLogEntry("CRITICAL: Failed to send welcome mail to $username");
 		}
 	}
 	
