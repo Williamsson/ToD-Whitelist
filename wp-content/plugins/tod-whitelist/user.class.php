@@ -121,7 +121,7 @@ class user extends todWhitelist{
 		
 	}
 	
-	private function setUserState($id, $state){
+	public function setUserState($id, $state){
 		global $wpdb;
 		$wpdb->update($this->getConf('dataTable'), array( 'state' => $state),array('id'=>$id));
 	}
