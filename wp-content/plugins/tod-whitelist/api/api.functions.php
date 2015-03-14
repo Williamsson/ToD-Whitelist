@@ -1,15 +1,21 @@
 ﻿<?php 
 function getUUID($username=""){
-	if($username == ""){		
-		$username = $_GET['username'];	
-	}	
-	if(!isset($username)){		
-		header('HTTP/1.0 400 Bad Request', true, 400);		
-		return false;		
-		exit;	
-	}	
-	sanitize_text_field($username);	
-	return curlOut("http://api.fishbans.com/uuid/" . $username);
+	$echo = false;
+	if($username == ""){
+		$echo = true;
+		$username = $_GET['username'];
+	}
+	if(!isset($username)){
+		header('HTTP/1.0 400 Bad Request', true, 400);
+		return false;
+		exit;
+	}
+	$url = "http://api.fishbans.com/uuid/" . $username;
+	if($echo){
+		echo curlOut($url);
+	}else{
+		return curlOut($url);
+	}
 }
 
 function getUsernameFromUUID($uuid=""){
