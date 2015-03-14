@@ -191,7 +191,6 @@ class user extends todWhitelist{
 		
 		if (!username_exists( $username ) && email_exists($email) == false ) {
 			$wpUserExists = true;
-			//@TODO: This check is worthless and does nothing. It attempts to create accounts all the time, but it never does. Wtf. Fix this.
 			if(wp_create_user( $username, $pwd, $email )){
 				$this->addLogEntry("Created WP account for $username");
 			}else{

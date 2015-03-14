@@ -23,7 +23,7 @@ class todWhitelistWidget extends WP_Widget {
 		if ( ! empty( $title ) )
 			echo $args['before_title'] . $title . $args['after_title'];
 		?>
-		<form method="POST" action="<?php echo "http://" . $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI']; ?>registration">
+		<form method="POST" action="<?php echo "http://" . $_SERVER['SERVER_NAME']; ?>/registration">
 			<label for="username">Minecraft username*:</label><br/>
 				<input type="text" name="username" value="<?= (isset($_POST['username']) ? $_POST['username'] : ''); ?>"><br/>
 			<label for="email">Email*:</label><br/>
