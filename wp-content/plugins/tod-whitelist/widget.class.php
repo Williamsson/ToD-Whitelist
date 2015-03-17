@@ -25,7 +25,7 @@ class todWhitelistWidget extends WP_Widget {
 		?>
 		<form method="POST" action="<?php echo "http://" . $_SERVER['SERVER_NAME']; ?>/registration">
 			<label for="username">Minecraft username*:</label><br/>
-				<input type="text" name="username" value="<?= (isset($_POST['username']) ? $_POST['username'] : ''); ?>"><br/>
+				<input type="text" required name="username" value="<?= (isset($_POST['username']) ? $_POST['username'] : ''); ?>"><br/>
 			<label for="email">Email*:</label><br/>
 				<input type="text" name="email" value="<?= (isset($_POST['email']) ? $_POST['email'] : ''); ?>"><br/>
 				<a id="whitelist_email_zebra_link" href="#">Why do you want my email?</a><br/>

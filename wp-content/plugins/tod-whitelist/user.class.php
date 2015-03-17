@@ -13,6 +13,11 @@ class user extends todWhitelist{
 		$doAuthentication = true;
 		$errors = array();
 		
+		if(empty($username)){
+			$completeRegistration = false;
+			$errors[] = "You need to fill in a username";
+		}
+		
 		if($this->checkEmailExists($email)){
 			$completeRegistration = false;
 			$errors[] = "We already have this email registered to a player.";
@@ -21,13 +26,18 @@ class user extends todWhitelist{
 		
 		$uuid = json_decode($uuid);
 		$uuid = $uuid->uuid;
-		
-		$userState = $this->getUuidState($uuid);
-		
-		if($userState){
+		if($uuid){
+			$userState = $this->getUuidState($uuid);
+			if($userState){
+				$completeRegistration = false;
+				$errors[] = "This username is already registered. Current state: " . $userState;
+			}
+		}else{
 			$completeRegistration = false;
-			$errors[] = "This username is already registered. Current state: " . $userState;
+			$errors[] = "That is not a valid username.";
 		}
+		
+		
 		
 		if($completeRegistration){
 			$doAuthitentication = true;
@@ -212,22 +222,24 @@ class user extends todWhitelist{
 			$message .="<p>Username: $username</p>";
 			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
 		}else{
-			$message .="<p>Oh! You already had an account here. In that case you know your credentials better than we do.<br/>
+			$message .="<p>Oh! You already had an account here. In that case you probably know your credentials better than we do.<br/>
 							Should there be any problems just email us and we'll take a look at it.</p>";
 		}
 		
-		$forumAcc = $this->forumAccountHandler("add", $username,md5($pwd),$email);
+		
+// 		$forumAcc = $this->forumAccountHandler("add", $username,md5($pwd),$email);
 		$message .="<br/><h2>Tales of Dertinia Forum:</h2>";
+		$message .= "<p>At the moment we couldn't automatically create a forum account. If you want an account <a href='http://forum.talesofdertinia.com'>click this link to sign up</a></p>";
 	
-		if($forumAcc){
-			$this->addLogEntry("Created forum acc for $username");
-			$message .="<p>Username: $username</p>";
-			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
-		}else{
-			$this->addLogEntry("Forum acc already existed for $username");
-			$message .="<p>Oh! You already had an account here. In that case you know your credentials better than we do.<br/>
-							Should there be any problems just email us and we'll take a look at it.</p>";
-		}
+// 		if($forumAcc){
+// 			$this->addLogEntry("Created forum acc for $username");
+// 			$message .="<p>Username: $username</p>";
+// 			$message .="<p>Password: $pwd (we strongly advice you to change this).</p>";
+// 		}else{
+// 			$this->addLogEntry("Forum acc already existed for $username");
+// 			$message .="<p>Oh! You already had an account here. In that case you know your credentials better than we do.<br/>
+// 							Should there be any problems just email us and we'll take a look at it.</p>";
+// 		}
 	
 		$message .="<br/><p>The application process is now completed! We thank you for your interest and hope you'll have a lot of fun on the server.</p>";
 		$message .= "<h2>Teamspeak</h2>";
