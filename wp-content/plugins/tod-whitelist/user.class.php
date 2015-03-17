@@ -123,7 +123,7 @@ class user extends todWhitelist{
 				$id = $data[0]->id;
 				
 				$this->setUserState($id, 'whitelisted');
-				$wpdb->delete($verificationTable,array('id'=>$id));				
+				$wpdb->delete($this->getConf('verificationTable'),array('id'=>$id));				
 				$this->createAccounts($id, $username, $email);
 				return true;
 			}
